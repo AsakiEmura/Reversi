@@ -1,28 +1,18 @@
 package com.bjut.reversi.reference;
 
-import java.awt.BorderLayout;
-import java.awt.Color;
-import java.awt.Dimension;
-import java.awt.FlowLayout;
-import java.awt.Graphics;
-import java.awt.Graphics2D;
-import java.awt.Insets;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
-import java.awt.event.MouseAdapter;
-import java.awt.event.MouseEvent;
-import java.awt.event.MouseListener;
-
-import javax.swing.ButtonGroup;
-import javax.swing.ImageIcon;
-import javax.swing.JButton;
-import javax.swing.JFrame;
-import javax.swing.JLabel;
-import javax.swing.JOptionPane;
-import javax.swing.JPanel;
-import javax.swing.JRadioButton;
-
+import com.alibaba.fastjson.JSONObject;
 import com.bjut.reversi.MLog;
+
+import javax.swing.*;
+import javax.swing.filechooser.FileNameExtensionFilter;
+import java.awt.*;
+import java.awt.event.*;
+import java.io.File;
+import java.io.FileOutputStream;
+import java.io.IOException;
+import java.io.OutputStreamWriter;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * 参照程序
@@ -38,7 +28,7 @@ public class Main   extends JFrame
 	public static final int WHITE=0;// 表示白方
 	public static final int BLACK=1;// 表示黑方
 	public static final int SPACE=-1;// 表示空
-	
+
 	  private Graphics2D g;
 	  private Graphics2D g_nowchess;
 	  private Color color_background = new Color(240, 240, 143);
@@ -64,44 +54,47 @@ public class Main   extends JFrame
 	  private boolean end;//是否已结束
 	  private boolean AI;//是否AI
 	  private JPanel jp_nowchess;//当前棋手颜色
-	  private int[][] cellpoints = { 
-	    { 100, -5, 10, 5, 5, 10, -5, 100 }, 
-	    { -5, -45, 1, 1, 1, 1, -45, -5 }, 
-	    { 10, 1, 3, 2, 2, 3, 1, 10 }, 
-	    { 5, 1, 2, 1, 1, 2, 1, 5 }, 
-	    { 5, 1, 2, 1, 1, 2, 1, 5 }, 
-	    { 10, 1, 3, 2, 2, 3, 1, 10 }, 
-	    { -5, -45, 1, 1, 1, 1, -45, -5 }, 
-	    { 100, -5, 10, 5, 5, 10, -5, 100 } };
+	  private int[][] cellpoints = {
+				{100, -5, 10, 5, 5, 10, -5, 100},
+				{-5, -45, 1, 1, 1, 1, -45, -5},
+				{10, 1, 3, 2, 2, 3, 1, 10},
+				{5, 1, 2, 1, 1, 2, 1, 5},
+				{5, 1, 2, 1, 1, 2, 1, 5},
+				{10, 1, 3, 2, 2, 3, 1, 10},
+				{-5, -45, 1, 1, 1, 1, -45, -5},
+				{100, -5, 10, 5, 5, 10, -5, 100}};
 
-	  private int INF = 10000000;
-	  private int BRANCHES = 1000000;
-	  private int bot_x;
-	  private int bot_y;
-	  private ButtonGroup btnGroup = new ButtonGroup();
-	  private JRadioButton player_first;
-	  private JRadioButton bot_first;
-	  private JFrame choose;
+		private int INF = 10000000;
+		private int BRANCHES = 1000000;
+		private int bot_x;
+		private int bot_y;
+		private ButtonGroup btnGroup = new ButtonGroup();
+		private JRadioButton player_first;
+		private JRadioButton bot_first;
+		private JFrame choose;
 
-	  public static void main(String[] args)
-	  {
-		MLog.DEBUG =true;
-	    Main frame = new Main();
-	    frame.init();
-	  }
+		private int n = 0;//当前走了多少步
+		private int[][] chessboard1;
+		private List<Integer> steps = new ArrayList<Integer>();
+		private boolean readDocument = false;//是否读取本地存档
 
-	  public void init()
-	  {
-	    setTitle("Staginner黑白棋");
-	    setResizable(false);
-	    setSize(new Dimension(650, 500));
-	    setLocationRelativeTo(null);
-	    setLayout(new BorderLayout());
-	    setDefaultCloseOperation(3);
 
-	    this.jp_play = new JPanel()
-	    {
-	      public void paint(Graphics g)
+		public static void main(String[] args) {
+			MLog.DEBUG = true;
+			Main frame = new Main();
+			frame.init();
+		}
+
+		public void init() {
+			setTitle("Staginner黑白棋");
+			setResizable(false);
+			setSize(new Dimension(650, 550));
+			setLocationRelativeTo(null);
+			setLayout(new BorderLayout());
+			setDefaultCloseOperation(3);
+
+			this.jp_play = new JPanel() {
+				public void paint(Graphics g)
 	      {
 	        super.paint(g);
 	        MLog.i("jp_play paint");
@@ -169,8 +162,10 @@ public class Main   extends JFrame
 	          Main.this.bot_x = 3;
 	          Main.this.bot_y = 2;
 	          Main.this.box[Main.this.bot_x][Main.this.bot_y] = chess;
+			  Main.this.countSomething(Main.this.bot_x,Main.this.bot_y);
 	          Main.this.g.drawImage(Main.this.blackchess.getImage(), Main.this.bot_x * 50 + 2, Main.this.bot_y * 50 + 2, 46, 46, null);
 	          Main.this.box[Main.this.bot_x][(Main.this.bot_y + 1)] = chess;
+			  Main.this.countSomething(Main.this.bot_x,Main.this.bot_y+1);
 	          Main.this.g.drawImage(Main.this.blackchess.getImage(), Main.this.bot_x * 50 + 2, (Main.this.bot_y + 1) * 50 + 2, 46, 46, null);
 	          Main.this.countChess();
 	          Main.this.chess = (1 - Main.this.chess);
@@ -193,51 +188,158 @@ public class Main   extends JFrame
 	      public void actionPerformed(ActionEvent e)
 	      {
 	        Main.this.setInit();
-	        Main.this.AI = true;
-	        Main.this.choose.setLocation(Main.this.jp_play.getLocationOnScreen().x + 125, Main.this.jp_play.getLocationOnScreen().y + 125);
-	        Main.this.choose.setVisible(true);
-	      }
-	    });
-	    JButton p_vs_p = new JButton("双人游戏");
-	    p_vs_p.setMargin(new Insets(0, 0, 0, 0));
-	    p_vs_p.setBounds(40, 300, 70, 30);
-	    this.jp_menu.add(p_vs_p);
+			  Main.this.AI = true;
+			  Main.this.choose.setLocation(Main.this.jp_play.getLocationOnScreen().x + 125, Main.this.jp_play.getLocationOnScreen().y + 125);
+			  Main.this.choose.setVisible(true);
+		  }
+		});
+			JButton p_vs_p = new JButton("双人游戏");
+			p_vs_p.setMargin(new Insets(0, 0, 0, 0));
+			p_vs_p.setBounds(40, 300, 70, 30);
+			this.jp_menu.add(p_vs_p);
 
-	    p_vs_p.addActionListener(
-	      new ActionListener()
-	    {
-	      public void actionPerformed(ActionEvent e)
-	      {
-	        Main.this.setInit();
-	        Main.this.AI = false;
-	      }
-	    });
-	    MouseListener laychess_ml = new MouseAdapter() { private int x;
-	      private int y;
-	      private int r;
-	      private int c;
-	      private boolean flag;//标识符,是否
-	      private boolean bot_continue;
+			p_vs_p.addActionListener(
+					new ActionListener() {
+						public void actionPerformed(ActionEvent e) {
+							Main.this.setInit();
+							Main.this.AI = false;
+						}
+					});
 
-	      public void mouseReleased(MouseEvent e) { if (Main.this.end)
-	        {
-	          MLog.i("游戏已经结束啦");
-	          return;
-	        }
-	        this.flag = false;
-	        this.x = e.getX();
-	        this.y = e.getY();
-	        this.r = (this.x / 50);
-	        this.c = (this.y / 50);
-	        if ((this.x - this.r * 50 > 6) && ((this.r + 1) * 50 - this.x > 6) && (this.y - this.c * 50 > 6) && ((this.c + 1) * 50 - this.y > 6) && (Main.this.check[r][c] == 1))
-	        {//是否在点击范围内，格子边上6像素不能点，避免误点
-	        //检测 可下棋步 check里面是否有点击的点
+			JButton read = new JButton("读取");
+
+			read.addActionListener(new ActionListener() {
+
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					// TODO Auto-generated method stub
+					JFileChooser fd = new JFileChooser();
+					fd.setFileSelectionMode(JFileChooser.OPEN_DIALOG);
+					FileNameExtensionFilter filter = new FileNameExtensionFilter(
+							"json文件(*.json)", "json");
+					fd.setFileFilter(filter);
+					int option = fd.showOpenDialog(null);
+					if (option == JFileChooser.APPROVE_OPTION) {
+						File f = fd.getSelectedFile();
+						ChessBoardRationality chessBoardRationality = new ChessBoardRationality();
+						if (f != null) {
+							String filepath = f.getPath().trim();
+							chessBoardRationality.checkRationality(new JFrame(), filepath);
+						}
+						Main.this.chessboard1 = chessBoardRationality.getChessboard();
+						Main.this.readDocument = true;
+						Main.this.AI = chessBoardRationality.isAI();
+						Main.this.steps = chessBoardRationality.getSteps();
+						Main.this.n = chessBoardRationality.getN();
+						System.out.println("n:"+Main.this.n);
+						if (chessBoardRationality.getColor() == 1) {
+							Main.this.chess = BLACK;
+						} else {
+							Main.this.chess = WHITE;
+						}
+						Main.this.setInit();
+					}
+				}
+			});
+
+			read.setMargin(new Insets(0, 0, 0, 0));
+			read.setBounds(40, 400, 70, 30);
+			this.jp_menu.add(read);
+
+			JButton save = new JButton("保存");
+
+			save.addActionListener(new ActionListener() {
+
+				@Override
+				public void actionPerformed(ActionEvent e) {
+					JSONObject json = new JSONObject();
+					json.put("n", Main.this.n);
+					if (Main.this.chess == 0) {
+						json.put("color", -1);
+					} else {
+						json.put("color", 1);
+					}
+					int[] finalChessboard = new int[64];
+					for (int i = 0; i < 8; i++) {
+						for (int j = 0; j < 64; j++) {
+							if (Main.this.box[i][j % 8] == 1)
+								finalChessboard[(i * 8) + (j % 8)] = 1;
+							else if (Main.this.box[i][j % 8] == 0)
+								finalChessboard[(i * 8) + (j % 8)] = -1;
+							else
+								finalChessboard[(i * 8) + (j % 8)] = 0;
+						}
+					}
+					json.put("chessboard", finalChessboard);
+					json.put("steps", Main.this.steps);
+
+					JFileChooser fd = new JFileChooser();
+					FileNameExtensionFilter filter = new FileNameExtensionFilter(
+							"json文件(*.json)", "json");
+					fd.setFileFilter(filter);
+					fd.setFileSelectionMode(JFileChooser.OPEN_DIALOG);
+					int option = fd.showOpenDialog(null);
+					if (option == JFileChooser.APPROVE_OPTION) {
+						File file = fd.getSelectedFile();
+
+						String fname = fd.getName(file);    //从文件名输入框中获取文件名
+
+						//假如用户填写的文件名不带我们制定的后缀名，那么我们给它添上后缀
+						if (fname.indexOf(".json") == -1) {
+							file = new File(fd.getCurrentDirectory(), fname + ".json");
+							System.out.println("renamed");
+							System.out.println(file.getName());
+						}
+						try {
+							OutputStreamWriter osw = new OutputStreamWriter(new FileOutputStream(file, false), "UTF-8");
+							FileOutputStream fos = new FileOutputStream(file);
+							osw.write(json.toJSONString());
+							osw.flush();//清空缓冲区，强制输出数据
+							osw.close();//关闭输出流
+							//写文件操作……
+
+							fos.close();
+
+						} catch (IOException err) {
+							System.err.println("IO异常");
+							err.printStackTrace();
+						}
+
+					}
+
+				}
+			});
+			save.setMargin(new Insets(0, 0, 0, 0));
+			save.setBounds(40, 450, 70, 30);
+			this.jp_menu.add(save);
+
+
+			MouseListener laychess_ml = new MouseAdapter() {
+				private int x;
+				private int y;
+				private int r;
+				private int c;
+				private boolean flag;//标识符,是否
+				private boolean bot_continue;
+
+				public void mouseReleased(MouseEvent e) {
+					if (Main.this.end) {
+						MLog.i("游戏已经结束啦");
+						return;
+					}
+					this.flag = false;
+					this.x = e.getX();
+					this.y = e.getY();
+					this.r = (this.x / 50);
+					this.c = (this.y / 50);
+					if ((this.x - this.r * 50 > 6) && ((this.r + 1) * 50 - this.x > 6) && (this.y - this.c * 50 > 6) && ((this.c + 1) * 50 - this.y > 6) && (Main.this.check[r][c] == 1)) {//是否在点击范围内，格子边上6像素不能点，避免误点
+						//检测 可下棋步 check里面是否有点击的点
 	          if (Main.this.chess == 1)
 	            Main.this.g.drawImage(Main.this.blackchess.getImage(), this.r * 50 + 2, this.c * 50 + 2, 46, 46, null);
 	          else if (Main.this.chess == 0)
 	            Main.this.g.drawImage(Main.this.whitechess.getImage(), this.r * 50 + 2, this.c * 50 + 2, 46, 46, null);
 	          Main.this.box[this.r][this.c] = chess;
-
+			  Main.this.countSomething(this.r,this.c);
 	          MLog.i("玩家：  " + this.r + "   " + this.c);
 	          Main.this.flipchess(this.r, this.c);
 	          Main.this.countChess();
@@ -291,7 +393,7 @@ public class Main   extends JFrame
 	                else if (Main.this.chess == 0)
 	                  Main.this.g.drawImage(Main.this.whitechess.getImage(), Main.this.bot_x * 50 + 2, Main.this.bot_y * 50 + 2, 46, 46, null);
 	                Main.this.box[bot_x][bot_y] = chess;
-
+					Main.this.countSomething(bot_x,bot_y);
 	                Main.this.flipchess(Main.this.bot_x, Main.this.bot_y);
 	                Main.this.countChess();
 	                Main.this.chess = (1 - Main.this.chess);
@@ -364,9 +466,11 @@ public class Main   extends JFrame
 	          Main.this.bot_x = 3;
 	          Main.this.bot_y = 2;
 	          Main.this.box[Main.this.bot_x][Main.this.bot_y] = chess;
-	          Main.this.g.drawImage(Main.this.blackchess.getImage(), Main.this.bot_x * 50 + 2, Main.this.bot_y * 50 + 2, 46, 46, null);
+			  Main.this.countSomething(Main.this.bot_x, Main.this.bot_y);
+			  Main.this.g.drawImage(Main.this.blackchess.getImage(), Main.this.bot_x * 50 + 2, Main.this.bot_y * 50 + 2, 46, 46, null);
 	          Main.this.box[Main.this.bot_x][(Main.this.bot_y + 1)] = chess;
-	          Main.this.g.drawImage(Main.this.blackchess.getImage(), Main.this.bot_x * 50 + 2, (Main.this.bot_y + 1) * 50 + 2, 46, 46, null);
+			  Main.this.countSomething(Main.this.bot_x, Main.this.bot_y);
+			  Main.this.g.drawImage(Main.this.blackchess.getImage(), Main.this.bot_x * 50 + 2, (Main.this.bot_y + 1) * 50 + 2, 46, 46, null);
 	          Main.this.countChess();
 	          Main.this.chess = (1 - Main.this.chess);
 	          if (Main.this.chess == 1)
@@ -391,28 +495,64 @@ public class Main   extends JFrame
 
 	    this.AI = true;
 	    this.end = true;
-	    
+
 	  }
 
-	  public void setInit()
-	  {
-	    this.end = false;
-	    for (int i = 0; i < 8; i++)
-	      for (int j = 0; j < 8; j++)
-	        this.box[i][j] = SPACE;
-	    this.box[4][4] = this.box[3][3] = WHITE;
-	    this.box[4][3] = this.box[3][4] = BLACK;
-	    this.chess = BLACK;
-	    countChess();
-	    checkLaychess();
+	  public void setInit() {
+		  this.end = false;
+		  if (this.readDocument) {
+			  this.check = new int[8][8];
+			  this.up = new int[8][8];
+			  this.down = new int[8][8];
+			  this.left = new int[8][8];
+			  this.right = new int[8][8];
+			  this.upleft = new int[8][8];
+			  this.upright = new int[8][8];
+			  this.downleft = new int[8][8];
+			  this.downright = new int[8][8];
 
-	    this.g.drawImage(this.chessboard.getImage(), 0, 0, this.jp_play.getWidth(), this.jp_play.getHeight(), null);
-	    for (int i = 0; i < this.box.length; i++) {
-	      for (int j = 0; j < this.box[i].length; j++)
-	      {
-	        if (this.box[i][j] < 0)
-	          continue;
-	        if (this.box[i][j] == BLACK)
+			  for (int i = 0; i < 8; i++) {
+				  for (int j = 0; j < 8; j++) {
+					  if (Main.this.chessboard1[i][j] == 1) {
+						  Main.this.box[i][j] = BLACK;
+					  } else if (Main.this.chessboard1[i][j] == -1) {
+						  Main.this.box[i][j] = WHITE;
+					  } else {
+						  Main.this.chessboard1[i][j] = SPACE;
+					  }
+				  }
+			  }
+		  } else {
+			  Main.this.n = 0;
+			  Main.this.steps.clear();
+
+			  this.check = new int[8][8];
+			  this.up = new int[8][8];
+			  this.down = new int[8][8];
+			  this.left = new int[8][8];
+			  this.right = new int[8][8];
+			  this.upleft = new int[8][8];
+			  this.upright = new int[8][8];
+			  this.downleft = new int[8][8];
+			  this.downright = new int[8][8];
+
+			  for (int i = 0; i < 8; i++)
+				  for (int j = 0; j < 8; j++)
+					  this.box[i][j] = SPACE;
+			  this.box[4][4] = this.box[3][3] = WHITE;
+			  this.box[4][3] = this.box[3][4] = BLACK;
+			  this.chess = BLACK;
+		  }
+		  Main.this.readDocument = false;
+		  countChess();
+		  checkLaychess();
+
+		  this.g.drawImage(this.chessboard.getImage(), 0, 0, this.jp_play.getWidth(), this.jp_play.getHeight(), null);
+		  for (int i = 0; i < this.box.length; i++) {
+			  for (int j = 0; j < this.box[i].length; j++) {
+				  if (this.box[i][j] < 0)
+					  continue;
+				  if (this.box[i][j] == BLACK)
 	          this.g.drawImage(this.blackchess.getImage(), i * 50 + 2, j * 50 + 2, 46, 46, null);
 	        if (this.box[i][j] == WHITE) {
 	          this.g.drawImage(this.whitechess.getImage(), i * 50 + 2, j * 50 + 2, 46, 46, null);
@@ -1285,21 +1425,34 @@ public class Main   extends JFrame
 	        max_value = temp;
 	        this.bot_x = i;
 	        this.bot_y = j;
-	        
+
 	      }
 	  }
-	  
+
 	  private void drawCheckPoint(){
 		     for(int i=0;i<8;i++){{
-		    	 for(int j=0;j<8;j++){
-		    		 if(check[i][j]==1){
-		    			 g.setColor(Color.green);
-		    			 g.fillOval(i* 50 + 20, j* 50 + 20, 10, 10);
-		    		 }
-		    		 
-		    	 }
-		     }
-         }
+				 for (int j = 0; j < 8; j++) {
+					 if (check[i][j] == 1) {
+						 g.setColor(Color.green);
+						 g.fillOval(i * 50 + 20, j * 50 + 20, 10, 10);
+					 }
+
+				 }
+			 }
+			 }
 	  }
-	  
+
+		private void countSomething(int r, int c) {
+			Main.this.steps.add(r);
+			Main.this.steps.add(c);
+
+			for (int i = 0; i < Main.this.steps.size(); i++) {
+				System.out.println(Main.this.steps.get(i));
+			}
+
+			Main.this.n = Main.this.n + 1;
+
+			System.out.println("n:"+Main.this.n);
+		}
+
 	}
